@@ -10,8 +10,16 @@ from traceweave_agent_runtime.tools.base import ToolContext, ToolDefinition, Too
 WEATHER_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "location": {"type": "string"},
-        "unit": {"type": "string", "enum": ["celsius", "fahrenheit"], "default": "celsius"},
+        "location": {
+            "type": "string",
+            "description": "Exact city or place from the current user message. Do not invent a default location.",
+        },
+        "unit": {
+            "type": "string",
+            "enum": ["celsius", "fahrenheit"],
+            "default": "celsius",
+            "description": "Temperature unit requested by the user; use celsius when unspecified.",
+        },
     },
     "required": ["location"],
     "additionalProperties": False,
@@ -41,7 +49,7 @@ def weather_handler(arguments: dict[str, Any], context: ToolContext) -> ToolResu
 def build_weather_tool() -> ToolDefinition:
     return ToolDefinition(
         name="weather",
-        description="Return deterministic mock weather for a location.",
+        description="Return deterministic mock weather for the exact location requested by the user.",
         parameters_schema=WEATHER_SCHEMA,
         handler=weather_handler,
         is_read_only=True,

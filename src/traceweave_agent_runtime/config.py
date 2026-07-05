@@ -17,6 +17,9 @@ class RuntimeConfig:
     openai_base_url: str | None
     openai_model: str | None
     db_path: Path
+    openai_timeout_seconds: float = 45.0
+    openai_max_tokens: int | None = 2048
+    openai_temperature: float = 0.0
     max_steps: int = 5
     max_recent_messages: int = 12
     max_context_tokens: int = 6000
@@ -35,11 +38,20 @@ class RuntimeConfig:
             openai_base_url=os.getenv("OPENAI_BASE_URL") or None,
             openai_model=os.getenv("OPENAI_MODEL") or None,
             db_path=db_path,
+            openai_timeout_seconds=float(os.getenv("OPENAI_TIMEOUT_SECONDS", "45")),
+            openai_max_tokens=cls._optional_int(os.getenv("OPENAI_MAX_TOKENS", "2048")),
+            openai_temperature=float(os.getenv("OPENAI_TEMPERATURE", "0")),
             max_steps=int(os.getenv("TRACEWEAVE_MAX_STEPS", "5")),
             max_recent_messages=int(os.getenv("TRACEWEAVE_MAX_RECENT_MESSAGES", "12")),
             max_context_tokens=int(os.getenv("TRACEWEAVE_MAX_CONTEXT_TOKENS", "6000")),
             summary_target_tokens=int(os.getenv("TRACEWEAVE_SUMMARY_TARGET_TOKENS", "800")),
         )
+
+    @staticmethod
+    def _optional_int(value: str | None) -> int | None:
+        if value is None or value == "":
+            return None
+        return int(value)
 
     def require_llm(self) -> None:
         missing = [

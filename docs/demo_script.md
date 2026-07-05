@@ -72,7 +72,19 @@ traceweave show-traces --user-id alice --session-id weather
 Show llm_request, llm_response, tool_call, tool_result, parser_error if any, and
 compression rows.
 
-## 8. README / Docs
+## 8. Optional Local Web UI Demo
+
+The written test accepts terminal or web operation recordings. This web UI is a
+thin local interface over the same self-built runtime loop.
+
+```bash
+traceweave serve --host 127.0.0.1 --port 8787
+```
+
+Open `http://127.0.0.1:8787`, send a weather-plus-todo message, and show the
+Todos and Trace panels updating.
+
+## 9. README / Docs
 
 Open README.md, docs/design_notes.md, docs/architecture_answers.md, and this
 demo script. Emphasize that .env is not committed and real search/LLM calls are

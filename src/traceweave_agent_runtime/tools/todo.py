@@ -11,9 +11,16 @@ from traceweave_agent_runtime.tools.base import ToolContext, ToolDefinition, Too
 TODO_SCHEMA: dict[str, Any] = {
     "type": "object",
     "properties": {
-        "operation": {"type": "string", "enum": ["add", "list", "complete", "update"]},
-        "title": {"type": "string"},
-        "todo_id": {"type": "integer"},
+        "operation": {
+            "type": "string",
+            "enum": ["add", "list", "complete", "update"],
+            "description": "Todo operation to perform for the current session.",
+        },
+        "title": {
+            "type": "string",
+            "description": "Exact todo title from the current user message when adding or updating a todo.",
+        },
+        "todo_id": {"type": "integer", "description": "Existing todo id for complete or update."},
         "status": {"type": "string", "enum": ["open", "done", "cancelled"]},
     },
     "required": ["operation"],
@@ -76,7 +83,7 @@ def todo_handler(arguments: dict[str, Any], context: ToolContext) -> ToolResult:
 def build_todo_tool() -> ToolDefinition:
     return ToolDefinition(
         name="todo",
-        description="Manage session-scoped todos. Supports add, list, complete, and update.",
+        description="Manage session-scoped todos. Use add when the user asks to remember or record a todo.",
         parameters_schema=TODO_SCHEMA,
         handler=todo_handler,
         is_read_only=False,

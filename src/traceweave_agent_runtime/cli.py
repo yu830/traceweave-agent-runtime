@@ -16,6 +16,7 @@ from traceweave_agent_runtime.runtime.agent_runtime import (
 from traceweave_agent_runtime.runtime.compression import DeterministicCompressor
 from traceweave_agent_runtime.runtime.errors import ConfigError
 from traceweave_agent_runtime.store.sqlite_store import SQLiteStore
+from traceweave_agent_runtime.web_app import serve as serve_web_app
 
 app = typer.Typer(help="TraceWeave self-built agent runtime CLI.")
 console = Console()
@@ -133,6 +134,18 @@ def compress(
         console.print("Compression not needed.")
     else:
         console.print(f"Created summary #{summary.id}: {summary.summary_text[:500]}")
+
+
+@app.command("serve")
+def serve(
+    host: str = typer.Option("127.0.0.1", "--host"),
+    port: int = typer.Option(8787, "--port"),
+) -> None:
+    """Run the local browser chat UI."""
+    try:
+        serve_web_app(Path.cwd(), host=host, port=port)
+    except ConfigError as exc:
+        raise typer.BadParameter(str(exc)) from exc
 
 
 if __name__ == "__main__":

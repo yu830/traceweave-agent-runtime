@@ -70,7 +70,7 @@ class AgentRuntime:
         )
         current_message = self.store.add_message(user_id, session_id, "user", user_input)
         self.compressor.compress_if_needed(user_id, session_id, run_id, self.trace_logger)
-        latest_tool_summary: str | None = None
+        tool_result_summaries: list[str] = []
         raw_response = ""
         for step_index in range(1, self.max_steps + 1):
             messages = self.context_builder.build(
@@ -78,7 +78,7 @@ class AgentRuntime:
                 session_id,
                 user_input,
                 current_message_id=current_message.id,
-                latest_tool_result_summary=latest_tool_summary,
+                tool_result_summaries=tool_result_summaries,
             )
             self.trace_logger.llm_request(run_id, user_id, session_id, step_index, messages)
             started = time.perf_counter()
@@ -138,7 +138,7 @@ class AgentRuntime:
                 action.tool_call.arguments,
                 context,
             )
-            latest_tool_summary = result.summary
+            tool_result_summaries.append(f"{action.tool_call.name}: {result.summary}")
             if not result.ok:
                 answer = f"Tool execution failed in a recoverable way: {result.summary}"
                 self.store.add_message(user_id, session_id, "assistant", answer)

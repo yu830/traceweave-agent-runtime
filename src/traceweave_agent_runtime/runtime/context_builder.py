@@ -19,7 +19,13 @@ RUNTIME_POLICY = """JSON Action Protocol:
   "tool_call": {"name": "tool_name", "arguments": {}} | null,
   "final_answer": "..." | null
 }
-If calling a tool, final_answer must be null. If answering, tool_call must be null."""
+If calling a tool, final_answer must be null. If answering, tool_call must be null.
+Extract tool arguments from the Current User Message exactly. Never invent
+default cities, dates, todo titles, or document paths when the user provided
+them. For mixed requests, complete each requested tool action once, then answer.
+Before calling a tool, check the Tool Results Block. Do not repeat a tool call
+that already returned the needed information in this turn. When all requested
+tool work is complete, return final_answer."""
 
 
 class ContextBuilder:
@@ -40,6 +46,7 @@ class ContextBuilder:
         current_user_message: str,
         current_message_id: int | None = None,
         latest_tool_result_summary: str | None = None,
+        tool_result_summaries: list[str] | None = None,
     ) -> list[dict[str, str]]:
         summary = self.store.get_latest_summary(user_id, session_id)
         open_todos = self.store.list_todos(user_id, session_id, status="open")
@@ -49,6 +56,23 @@ class ContextBuilder:
             limit=self.max_recent_messages,
             exclude_message_id=current_message_id,
         )
+        tool_results = list(tool_result_summaries or [])
+        if latest_tool_result_summary and latest_tool_result_summary not in tool_results:
+            tool_results.append(latest_tool_result_summary)
+        tool_results_block = (
+            "\n".join(f"- {summary}" for summary in tool_results)
+            if tool_results
+            else "No tool result for this step."
+        )
+        current_user_content = f"Current User Message:\n{current_user_message}"
+        if tool_results:
+            current_user_content += (
+                "\n\nTool Results Already Available For This Turn:\n"
+                + tool_results_block
+                + "\n\nUse these results. Do not call completed tools again. "
+                "If another requested side effect is still missing, call that tool next; "
+                "otherwise return final_answer."
+            )
         messages: list[dict[str, str]] = [
             {"role": "system", "content": SYSTEM_PROMPT},
             {"role": "system", "content": f"Runtime Policy:\n{RUNTIME_POLICY}"},
@@ -87,10 +111,9 @@ class ContextBuilder:
             },
             {
                 "role": "system",
-                "content": "Latest Tool Result Block:\n"
-                + (latest_tool_result_summary or "No tool result for this step."),
+                "content": "Tool Results Block:\n" + tool_results_block,
             },
-            {"role": "user", "content": f"Current User Message:\n{current_user_message}"},
+            {"role": "user", "content": current_user_content},
         ]
         return messages
 

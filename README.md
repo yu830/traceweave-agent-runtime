@@ -27,13 +27,13 @@ testable.
 - Session-scoped todo and note tools.
 - Mock-first search and weather tools.
 - Deterministic context compression.
-- Typer CLI for chat, database setup, todos, messages, traces, and compression.
+- Typer CLI for chat, database setup, todos, messages, traces, compression, and a local web UI.
 - pytest suite that does not require real API credentials by default.
 
 ## Architecture
 
 ```text
-CLI / Tests / Examples
+CLI / Web UI / Tests / Examples
         |
         v
 AgentRuntime.run_turn(user_id, session_id, user_input)
@@ -77,6 +77,9 @@ OPENAI_MODEL=...
 Optional runtime settings:
 
 ```bash
+OPENAI_TIMEOUT_SECONDS=45
+OPENAI_MAX_TOKENS=2048
+OPENAI_TEMPERATURE=0
 TRACEWEAVE_DB_PATH=.traceweave/traceweave.sqlite3
 SEARCH_PROVIDER=mock
 SEARCH_API_KEY=
@@ -128,6 +131,16 @@ Compress a session:
 traceweave compress --user-id alice --session-id weather
 ```
 
+Run the local browser UI:
+
+```bash
+traceweave serve --host 127.0.0.1 --port 8787
+```
+
+Open `http://127.0.0.1:8787`. The web UI is a thin local interface over the
+same `AgentRuntime.run_turn(...)` loop used by the CLI; it is not a separate
+agent implementation.
+
 ## Tools
 
 | Tool | Purpose | Notes |
@@ -158,13 +171,15 @@ Each LLM request is built in this order:
 5. Session Summary Block
 6. Open Todos Block
 7. Recent Messages Block
-8. Latest Tool Result Block
+8. Tool Results Block
 9. Current User Message
 
-Full trace logs and full tool results do not enter context. The runtime passes
-only the latest tool result summary to the next loop step. The memory block is a
-placeholder in this minimal implementation; session summaries and structured
-state provide the current continuity layer.
+Full trace logs and full tool result payloads do not enter context. During a
+single turn, the runtime passes compact summaries of tools already executed in
+that turn back to the next loop step so the model can continue with remaining
+work or return a final answer without repeating completed tools. The memory
+block is a placeholder in this minimal implementation; session summaries and
+structured state provide the current continuity layer.
 
 ## Trace Logs
 
@@ -176,6 +191,20 @@ traceweave show-traces --user-id alice --session-id weather
 
 The runtime records `llm_request`, `llm_response`, `parser_error`, `tool_call`,
 `tool_result`, `tool_error`, `max_steps_reached`, and `compression`.
+
+## Memory Recall Timing And Placement
+
+This minimal runtime treats session memory as layered context rather than a
+global vector memory system. On every `run_turn`, it recalls session-scoped
+state before the LLM call: the latest compressed summary, open todos, recent
+messages, and any tool result summaries already produced during the current
+turn. These recalled items are placed before the current user message so the
+model can answer follow-ups and avoid repeating completed tools.
+
+The `Relevant Memory Block` is reserved for a future long-term semantic memory
+retriever. It is intentionally a placeholder here because the written-test
+runtime focuses on session continuity, tool state, bounded context, and
+compression rather than a production memory index.
 
 ## Testing
 
@@ -201,6 +230,7 @@ Do not fake real API test results.
 
 - Direct final answer with FakeLLM in tests.
 - Weather plus todo with the CLI and configured OpenAI-compatible endpoint.
+- Weather plus todo with the local web UI via `traceweave serve`.
 - Session isolation via `examples/demo_session_isolation.py`.
 - Context compression via `examples/demo_context_compression.py`.
 - Trace log review via `traceweave show-traces`.
@@ -215,5 +245,5 @@ required and should not be committed.
 - Context compression is deterministic and conservative.
 - Long-term semantic memory recall is not implemented beyond the placeholder
   memory block and session summaries.
-- CLI chat requires configured OpenAI-compatible LLM environment variables.
+- CLI and web chat require configured OpenAI-compatible LLM environment variables.
 
