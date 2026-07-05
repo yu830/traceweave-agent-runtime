@@ -118,7 +118,7 @@
 
 目标:
 
-- 题目允许“终端或网页操作录屏”。
+- 提供 CLI 之外的本地网页交互界面。
 - Web UI 只作为薄界面，不替代 runtime。
 
 产出:
@@ -205,7 +205,7 @@
 - 切换到更稳定的 `qwen/qwen3-next-80b-a3b-instruct`。
 - 增加 `OPENAI_TIMEOUT_SECONDS`。
 - 增加 `OPENAI_MAX_TOKENS`。
-- 增加 `OPENAI_TEMPERATURE=0`，提高录屏稳定性。
+- 增加 `OPENAI_TEMPERATURE=0`，提高演示和测试稳定性。
 
 ### 问题 7: Web API 验证脚本中文变成问号
 

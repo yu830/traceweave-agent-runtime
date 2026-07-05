@@ -1,64 +1,46 @@
 # TraceWeave Agent Runtime
 
-TraceWeave 是一个从零实现的最小可用 Agent Runtime，用于 Agent 技术方向笔试提交。项目主体是 Python 包 `traceweave_agent_runtime`，提供终端 CLI 和本地网页对话界面。网页只是薄 UI，底层仍然调用同一个自研 `AgentRuntime.run_turn(...)` 循环。
+TraceWeave 是一个从零实现的最小可用 Agent Runtime。项目主体是 Python 包 `traceweave_agent_runtime`，提供终端 CLI 和本地网页对话界面。网页只是薄 UI，底层仍然调用同一个自研 `AgentRuntime.run_turn(...)` 循环。
 
 项目没有使用 LangGraph、OpenHands、OpenClaw、LangChain Agent Executor、AutoGen、CrewAI 或 LlamaIndex Agent Runtime 作为主流程。核心 Agent Runtime 的循环、工具协议、输出解析、工具注册、session 存储、context 构造、压缩和 trace 都在本仓库内自行实现。
 
 ## 索引
 
 - [一、快速运行](#一快速运行)
-- [二、网页录屏方式](#二网页录屏方式)
+- [二、真实 LLM API 配置](#二真实-llm-api-配置)
 - [三、系统设计](#三系统设计)
 - [四、工具注册与 Agent Loop](#四工具注册与-agent-loop)
 - [五、Session、Context 与 Memory](#五sessioncontext-与-memory)
 - [六、Trace 与异常处理](#六trace-与异常处理)
 - [七、测试用例](#七测试用例)
-- [八、提交材料位置](#八提交材料位置)
+- [八、AI Prompt 与问题解决记录](#八ai-prompt-与问题解决记录)
 - [九、架构设计题完整回答](#九架构设计题完整回答)
 - [十、参考资料](#十参考资料)
 
 ## 一、快速运行
 
-### 1. 安装
+### 1. 安装依赖
 
 Windows PowerShell:
 
 ```powershell
-cd "C:\Users\喻嘉城\Documents\Agent\traceweave-agent-runtime"
+git clone https://github.com/yu830/traceweave-agent-runtime.git
+cd traceweave-agent-runtime
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -U pip
 python -m pip install -e ".[dev]"
 ```
 
-Python 版本要求: 3.11 或更新。当前本机验证环境为 Python 3.13。
+Python 版本要求: 3.11 或更新。
 
-### 2. 配置真实 LLM API
-
-复制 `.env.example` 为 `.env`，填入真实 OpenAI-compatible API 配置。本机演示使用 NVIDIA endpoint 与 Qwen 模型。
-
-```env
-OPENAI_API_KEY=...
-OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1
-OPENAI_MODEL=qwen/qwen3-next-80b-a3b-instruct
-OPENAI_TIMEOUT_SECONDS=30
-OPENAI_MAX_TOKENS=2048
-OPENAI_TEMPERATURE=0
-
-TRACEWEAVE_DB_PATH=.traceweave/traceweave.sqlite3
-SEARCH_PROVIDER=mock
-RUN_LLM_TESTS=1
-```
-
-不要提交 `.env`。仓库只提交 `.env.example`，真实 key 被 `.gitignore` 排除。
-
-### 3. 初始化数据库
+### 2. 初始化数据库
 
 ```powershell
 traceweave init-db
 ```
 
-### 4. 终端对话
+### 3. 终端对话
 
 ```powershell
 traceweave chat --user-id alice --session-id weather --message "查一下上海明天的天气，并记一个待办：明天带伞。"
@@ -67,9 +49,7 @@ traceweave show-messages --user-id alice --session-id weather
 traceweave show-traces --user-id alice --session-id weather
 ```
 
-## 二、网页录屏方式
-
-题目要求提交“终端或网页操作录屏”。本项目提供本地网页界面，便于展示 session、todos 和 trace。
+### 4. 本地网页界面
 
 ```powershell
 traceweave serve --host 127.0.0.1 --port 8787
@@ -81,15 +61,26 @@ traceweave serve --host 127.0.0.1 --port 8787
 http://127.0.0.1:8787
 ```
 
-建议录屏步骤:
+## 二、真实 LLM API 配置
 
-1. `python -m pytest` 展示测试通过。
-2. 打开网页，User 使用 `alice`，Session 使用 `weather`。
-3. 输入 `查一下上海明天的天气，并记一个待办：明天带伞。`
-4. 展示右侧 `Todos` 出现 `明天带伞`。
-5. 展示右侧 `Trace` 出现 `llm_request -> weather -> todo -> final_answer`。
-6. 切换 Session 为 `weekly`，输入 `帮我写周报提纲，并记一个待办：周五提交周报。`
-7. 在 `weather` 和 `weekly` 之间切换，展示两个 session 的待办互不影响。
+项目运行时使用 OpenAI-compatible LLM API。公开仓库不保存明文密钥，真实 key 通过 `.env` 或系统环境变量注入。
+
+复制 `.env.example` 为 `.env`，填入真实 API key:
+
+```env
+OPENAI_API_KEY=<your-real-api-key>
+OPENAI_BASE_URL=https://integrate.api.nvidia.com/v1
+OPENAI_MODEL=qwen/qwen3-next-80b-a3b-instruct
+OPENAI_TIMEOUT_SECONDS=30
+OPENAI_MAX_TOKENS=2048
+OPENAI_TEMPERATURE=0
+
+TRACEWEAVE_DB_PATH=.traceweave/traceweave.sqlite3
+SEARCH_PROVIDER=mock
+RUN_LLM_TESTS=1
+```
+
+`.env` 已被 `.gitignore` 排除，仓库只保留非敏感配置模板。上面的 endpoint 和模型名可公开；API key 不应出现在 README、提交历史或 issue 中。
 
 ## 三、系统设计
 
@@ -165,7 +156,7 @@ AgentRuntime.run_turn(user_id, session_id, user_input)
 | `calculator` | 安全算术计算 | 使用 AST 白名单，不使用 `eval` |
 | `search` | 搜索 | 默认 mock，支持可选真实 endpoint |
 | `todo` | session 级待办 | add/list/complete/update |
-| `weather` | 天气查询 | deterministic mock，便于稳定录屏 |
+| `weather` | 天气查询 | deterministic mock，便于稳定测试与演示 |
 | `read_docs` | 读取项目文档 | 限制在 `docs/` 和 `examples/sample_docs/` |
 | `datetime` | 当前时间 | 支持 IANA timezone |
 | `note` | session 级笔记 | add/list |
@@ -290,14 +281,35 @@ python -m pytest
 - web API 复用 runtime。
 - 真实 LLM 集成测试由 `RUN_LLM_TESTS=1` 和真实 API 配置控制。
 
-## 八、提交材料位置
+## 八、AI Prompt 与问题解决记录
 
-- 代码链接: https://github.com/yu830/traceweave-agent-runtime
-- README: 本文件。
-- 录屏脚本: `docs/demo_script.md`
-- AI Prompt 与问题解决记录: `docs/ai_prompts_and_issue_log.md`
-- 架构设计题完整回答: `docs/architecture_answers.md`
-- 示例文档: `examples/sample_docs/agent_runtime_notes.md`
+完整记录见 `docs/ai_prompts_and_issue_log.md`。本项目使用 AI 作为工程辅助工具，但核心 Agent Runtime 的边界、取舍、测试和安全策略由人工审查确认。
+
+### 使用原则
+
+- AI 用于辅助设计、代码生成、测试补充和审查，不替代人工判断。
+- 核心 Agent Runtime 边界由人工确定: parser、tool registry、store、context builder、compression、trace、CLI/Web UI。
+- 主流程不依赖 LangGraph、OpenHands、OpenClaw 等现有 Agent 框架。
+- 测试结果必须来自真实命令输出。
+- 真实 LLM API 通过 `.env` 或环境变量配置，不把 API key 写入仓库。
+
+### 关键 Prompt 方向
+
+1. 从零实现最小可用 Agent Runtime: 产出 `AgentRuntime.run_turn(...)`、`ActionParser`、`ToolRegistry`、`SQLiteStore`、`ContextBuilder` 和 `TraceLogger`。
+2. 设计 provider-neutral JSON Action Protocol: 不依赖单一厂商的 native function calling，由 runtime 自行解析、校验和执行工具。
+3. 实现工具系统: 支持 calculator、search、todo、weather、read_docs 等工具，并为每个工具提供名称、描述和参数 schema。
+4. 实现 session 隔离: 所有 messages、todos、summaries、notes、traces 都按 `user_id + session_id` 过滤。
+5. 实现 context 管理与压缩: 最近消息保留原文，旧消息写入 summary，open todos 作为结构化状态单独注入。
+6. 加入本地 Web UI: 作为 CLI 之外的交互界面，但不改变底层 runtime 主流程。
+
+### 关键问题与修复
+
+- 工具循环重复调用: 将本轮 tool result summaries 放入下一步 context，并在 runtime policy 中要求工具完成后返回 `final_answer`。
+- LLM 输出格式不稳定: 使用 JSON Action Protocol + Pydantic 校验，解析失败写入 trace 并返回可读错误。
+- calculator 安全风险: 使用 AST 白名单，不使用 `eval`。
+- read_docs 路径风险: 限制读取范围，避免路径穿越。
+- session 数据串扰: SQLite 查询统一按 `user_id + session_id` 过滤，并添加 session 隔离测试。
+- API 超时: 增加 timeout、max tokens、temperature 配置，并切换到更稳定的 OpenAI-compatible Qwen 模型。
 
 ## 九、架构设计题完整回答
 
