@@ -4,6 +4,8 @@ TraceWeave 是一个从零实现的最小可用 Agent Runtime。项目主体是 
 
 项目没有使用 LangGraph、OpenHands、OpenClaw、LangChain Agent Executor、AutoGen、CrewAI 或 LlamaIndex Agent Runtime 作为主流程。核心 Agent Runtime 的循环、工具协议、输出解析、工具注册、session 存储、context 构造、压缩和 trace 都在本仓库内自行实现。
 
+演示视频: [docs/demo/traceweave-web-demo.mp4](docs/demo/traceweave-web-demo.mp4)
+
 ## 索引
 
 - [一、快速运行](#一快速运行)
